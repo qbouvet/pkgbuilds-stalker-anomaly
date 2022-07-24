@@ -41,6 +41,7 @@ install="${pkgname}.install"
 #   - Take some inspiration from java jdk detecting source in /Downloads
 #     https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=jdk8
 
+
 function notice() {
 cat << EOF
 

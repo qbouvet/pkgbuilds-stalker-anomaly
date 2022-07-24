@@ -1,0 +1,40 @@
+
+PLEASE NOTE: FILES MUST BE MANUALLY DOWNLOADED: 
+  - Anomaly-1.5.1.7z
+    @https://www.moddb.com/downloads/stalker-anomaly-151
+  - Anomaly-1.5.1-to-1.5.2-Update.7z
+    @https://www.moddb.com/mods/stalker-anomaly/downloads/stalker-anomaly-151-to-152
+
+PLEASE NOTE: THIS PACKAGE IS BIG: 
+  - 10 GB of data will be downloaded
+  - 25 GB of RAM / Swap will be used during build
+  - The final package is ~17 GB in size
+
+pkgbase = stalker-anomaly
+	pkgdesc = Standalone mod for S.T.A.L.K.E.R games series
+	pkgver = 1.5.2
+	pkgrel = 1
+	url = https://www.moddb.com/mods/stalker-anomaly
+	install = stalker-anomaly.install
+	arch = x86_64
+	license = none
+	makedepends = p7zip
+	depends = wine
+	depends = winetricks
+	depends = unionfs-fuse
+	noextract = Anomaly-1.5.1.7z
+	noextract = Anomaly-1.5.1-to-1.5.2-Update.7z
+	source = file://stalker-anomaly
+	source = file://stalker-anomaly.png
+	source = file://stalker-anomaly.desktop
+	source = file://stalker-anomaly-launcher.desktop
+	source = manual://Anomaly-1.5.1.7z
+	source = manual://Anomaly-1.5.1-to-1.5.2-Update.7z
+	md5sums = SKIP
+	md5sums = SKIP
+	md5sums = SKIP
+	md5sums = SKIP
+	md5sums = 0ee1e9a0e45c529536370ba76b0ec47f
+	md5sums = 8f4d4000e8aee78f25ee2ac977acaa0f
+
+pkgname = stalker-anomaly
