@@ -25,8 +25,8 @@ md5sums=(
   "SKIP"
   "SKIP"
   "SKIP"
-  "SKIP" #0ee1e9a0e45c529536370ba76b0ec47f
-  "SKIP" #8f4d4000e8aee78f25ee2ac977acaa0f
+  "0ee1e9a0e45c529536370ba76b0ec47f"
+  "8f4d4000e8aee78f25ee2ac977acaa0f"
 )
 noextract=(
   "Anomaly-1.5.1.7z"
@@ -34,8 +34,12 @@ noextract=(
 )
 install="${pkgname}.install"
 
-# Take some inspiration from java jdk detecting source in /Downloads
-# https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=jdk8
+# TODO: 
+#   - Look into transmission-dlagent so that the pkgbuild can download the files directly
+#     https://wiki.archlinux.org/title/PKGBUILD
+#     https://aur.archlinux.org/packages/transmission-dlagent
+#   - Take some inspiration from java jdk detecting source in /Downloads
+#     https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=jdk8
 
 function notice() {
 cat << EOF

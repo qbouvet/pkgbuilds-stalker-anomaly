@@ -32,12 +32,11 @@ export WINEPREFIX="${WINE_ROOT}/${pkgname}"
 # win32, win64
 export WINEARCH="win64"                                 
 # eg. "dbghelp=n,b";
-export WINEDLLOVERRIDES="d3d...=n;dxgi=n;quartz=n,b"
+export WINEDLLOVERRIDES="d3d...=n;dxgi=n;quartz=n,b;"
 # eg. -all -fps
 export WINEDEBUG=""                                     
-# Install windows libraries. No dotnet40 !!
-#winlibs="d9vk040 dxvk160 d3dcompiler_47 quartz vcrun6 d3dx9 d3dx11_43" 
-winlibs="dxvk d3dcompiler_47 quartz vcrun6 d3dx9 d3dx11_43" 
+# Windows DLLs to be installed with winetricks
+winlibs="dxvk d3dcompiler_47 quartz vcrun6 d3dx9 d3dx11_43" # (!) No dotnet40 // #winlibs="d9vk040 dxvk160 d3dcompiler_47 quartz vcrun6 d3dx9 d3dx11_43" 
 # win10, xp, ...
 winver="win10"                                          
 
@@ -57,8 +56,21 @@ function notify () {
     echo "$@"
     if [[ -x $(which notify-send) ]] 
     then 
-        notify-send --app-name=${pkgname} --icon=${pkgname} $@
+        notify-send --app-name=${pkgname} --icon=${pkgname} "$@"
     fi 
+}
+
+
+#
+#   Delete the wine prefix
+#
+function resetWinePrefix() {
+
+    notify "Unmounting UnionFS"
+    umount ${WINEPREFIX}/drive_c/${pkgname}_union;
+
+    notify "Deleting Wine Prefix"
+    rm -rf ${WINEPREFIX}
 }
 
 
@@ -70,25 +82,25 @@ function notify () {
 #     - Symlink directory for games saves
 #
 function initialSetup () {
-    notify "Performing 1st time setup"
+
+    notify "Performing 1st time setup (this may take some time)"
     
     # Initialize prefix
     mkdir -p "${WINEPREFIX}"
     wineboot
     winetricks sandbox
     winetricks ${winver}
-    notify "Installing libraries, this may take time"
     winetricks ${winlibs}
 
     mkdir -p "${WINEPREFIX}/drive_c/${pkgname}_union/"
     mkdir -p "${WINEPREFIX}/drive_c/${pkgname}_writable/"
-        
-    # Configure UnionFS in prefix
+
+    # Writable paths for UnionFS
     for f in ${writables[@]}; do
         cp -r "/usr/share/${pkgname}/${f}" "${WINEPREFIX}/drive_c/${pkgname}_writable/${f}"
     done
-    
-    # Configure saves in ~/Gamedata
+
+    # Symlink ~/Gamesaves
     mkdir -p "${HOME}/Gamesaves/${pkgname}"
     rm -rf "${WINEPREFIX}/drive_c/${pkgname}_writable/${gameSavesDir}"
     cp --recursive --no-clobber \
@@ -107,9 +119,9 @@ function initialSetup () {
 #
 function setupUnionFs {
 
-    if [[ $(mount | grep "unionfs on ${WINEPREFIX}/drive_c/${pkgname}_union") -eq 0 ]]
+    if [[ $(mount | grep "unionfs on ${WINEPREFIX}/drive_c/${pkgname}_union") ]]
     then 
-        # Work around the "Anomaly launcher hanging at exit" issue by not doing anything if 
+        # Work around the "Anomaly launcher hangs on exit" issue, by not doing anything if 
         # the UnionFS is found already mounted 
         notify "UnionFS already mounted"
     else 
@@ -126,7 +138,7 @@ function setupUnionFs {
             return $err
         fi
         
-        trap "echo unmounting unionFS; umount ${WINEPREFIX}/drive_c/${pkgname}_union;" EXIT
+        trap "echo unmounting unionFS; sleep 2; umount ${WINEPREFIX}/drive_c/${pkgname}_union;" EXIT
     fi
 }
 
@@ -134,7 +146,21 @@ function setupUnionFs {
 #
 #   Parse CLI arguments and start application accordingly
 #
-function startApplication() {
+function main() {
+
+    if [ $# -ge 1 ] && [ "$1" == "--reset" ]; 
+    then 
+        echo "--reset"
+        resetWinePrefix
+        return 
+    fi
+
+    # First-time setup
+    if [ ! -d "${WINEPREFIX}/drive_c/${pkgname}_writable" ]; then
+        initialSetup
+    fi
+
+    setupUnionFs
 
     notify "Starting Application with wine"
 
@@ -142,26 +168,23 @@ function startApplication() {
 
     if [ $# -ge 1 ] && [ "$1" == "--launcher" ]; 
     then 
-        # The launcher hangs on exit (Exception in Wine). This prevents from unmounting 
-        # UnionFS properly. 
+        echo "--launcher"
+        # Note: The launcher hangs on exit (Some windows exception thrown). This prevents 
+        # proper unmounting of unionFS. 
         wine ${WINEPREFIX}/drive_c/${pkgname}_union/AnomalyLauncher.exe "$@"
     elif [ $# -ge 1 ] && [ "$1" == "--dx9" ]; 
     then 
+        # DX9, why not
+        echo "--dx9"
         wine ${WINEPREFIX}/drive_c/${pkgname}_union/bin/AnomalyDX9.exe "$@"
     else 
+        # Else default to DX11
+        echo "--dx11"
         wine ${WINEPREFIX}/drive_c/${pkgname}_union/bin/AnomalyDX11.exe "$@"
     fi
 
 }
 
 
-
-# First-time setup
-if [ ! -d "${WINEPREFIX}/drive_c/${pkgname}_writable" ]; then
-    initialSetup
-fi
-
-setupUnionFs
-startApplication $@
-
+main $@
 exit 0
