@@ -1,0 +1,167 @@
+#!/bin/bash
+
+#
+# S.T.A.L.K.E.R Anomaly is a windows application. Therefore, we run it in 
+# Wine. We apply the arch wiki recommendations[1] regarding packaging of Wine
+# applications : 
+#   - The game files are installed in /usr/share/${pkgname}
+#   - The application is launched with a wrapper (this script) that initializes 
+#     a wine environment per user
+#
+# Other references re. Anomaly on Wine [1],[2]
+#
+#   [1] https://wiki.archlinux.org/index.php/Wine_package_guidelines
+#   [2] https://www.reddit.com/r/SolusProject/comments/dc2xep/wine_gaming_guide_to_running_anomaly_mod_on_solus/
+#   [3] https://www.moddb.com/mods/stalker-anomaly/forum/thread/anomaly-in-wine-linux-and-other-things
+#
+
+# Usual bash flags
+set -euo pipefail       # Exit on 1/ nonzero exit code 2/ unassigned variable 3/ pipe error
+shopt -s nullglob       # Allow null globs
+shopt -s expand_aliases # Enable alias (not on by default in un-interactive shells)
+
+
+pkgname="stalker-anomaly"
+
+WINE_ROOT="$HOME/.local/share/wineprefixes" # winetricks default
+GAMESAVES_ROOT="$HOME/Gamesaves"
+
+
+# wine prefix, no trailing /
+export WINEPREFIX="${WINE_ROOT}/${pkgname}"             
+# win32, win64
+export WINEARCH="win64"                                 
+# eg. "dbghelp=n,b";
+export WINEDLLOVERRIDES="d3d...=n;dxgi=n;quartz=n,b"
+# eg. -all -fps
+export WINEDEBUG=""                                     
+# Install windows libraries. No dotnet40 !!
+#winlibs="d9vk040 dxvk160 d3dcompiler_47 quartz vcrun6 d3dx9 d3dx11_43" 
+winlibs="dxvk d3dcompiler_47 quartz vcrun6 d3dx9 d3dx11_43" 
+# win10, xp, ...
+winver="win10"                                          
+
+
+# All files (file/dir) that the game may modify, starting at /usr/local/${pkgname}
+# We copy them over to the user local wine prefix
+writables=(
+    "gamedata"
+    #"commandline.txt"
+    #"AnomalyLauncher.cfg"
+)
+gameSavesDir="appdata"
+
+
+# Output to the console and notify-send if available
+function notify () {
+    echo "$@"
+    if [[ -x $(which notify-send) ]] 
+    then 
+        notify-send --app-name=${pkgname} --icon=${pkgname} $@
+    fi 
+}
+
+
+#
+#   First time setup includes: 
+#     - Create a wineprefix with necessary libraries
+#     - Create the folder structure for unionFS
+#     - Copy over files that should be writable
+#     - Symlink directory for games saves
+#
+function initialSetup () {
+    notify "Performing 1st time setup"
+    
+    # Initialize prefix
+    mkdir -p "${WINEPREFIX}"
+    wineboot
+    winetricks sandbox
+    winetricks ${winver}
+    notify "Installing libraries, this may take time"
+    winetricks ${winlibs}
+
+    mkdir -p "${WINEPREFIX}/drive_c/${pkgname}_union/"
+    mkdir -p "${WINEPREFIX}/drive_c/${pkgname}_writable/"
+        
+    # Configure UnionFS in prefix
+    for f in ${writables[@]}; do
+        cp -r "/usr/share/${pkgname}/${f}" "${WINEPREFIX}/drive_c/${pkgname}_writable/${f}"
+    done
+    
+    # Configure saves in ~/Gamedata
+    mkdir -p "${HOME}/Gamesaves/${pkgname}"
+    rm -rf "${WINEPREFIX}/drive_c/${pkgname}_writable/${gameSavesDir}"
+    cp --recursive --no-clobber \
+        "/usr/share/${pkgname}/${gameSavesDir}" \
+        "${HOME}/Gamesaves/${pkgname}/"
+    ln -s \
+        "${GAMESAVES_ROOT}/${pkgname}/${gameSavesDir}" \
+        "${WINEPREFIX}/drive_c/${pkgname}_writable/${gameSavesDir}"
+}
+
+
+#
+#   Recurrent setup: 
+#     - Mount the UnionFS
+#     - Setup trap to unmount unionFS at program exit
+#
+function setupUnionFs {
+
+    if [[ $(mount | grep "unionfs on ${WINEPREFIX}/drive_c/${pkgname}_union") -eq 0 ]]
+    then 
+        # Work around the "Anomaly launcher hanging at exit" issue by not doing anything if 
+        # the UnionFS is found already mounted 
+        notify "UnionFS already mounted"
+    else 
+
+        notify "Mounting UnionFs"
+    
+        unionfs \
+            "${WINEPREFIX}/drive_c/${pkgname}_writable/"=RW:"/usr/share/${pkgname}/"=RO \
+            "${WINEPREFIX}/drive_c/${pkgname}_union"
+        err=$? 
+        
+        if [ $err -ne 0 ]; then
+            notify "UnionFS error $err. Is Anomaly already running ?"
+            return $err
+        fi
+        
+        trap "echo unmounting unionFS; umount ${WINEPREFIX}/drive_c/${pkgname}_union;" EXIT
+    fi
+}
+
+
+#
+#   Parse CLI arguments and start application accordingly
+#
+function startApplication() {
+
+    notify "Starting Application with wine"
+
+    cd "${WINEPREFIX}/drive_c/${pkgname}_union"
+
+    if [ $# -ge 1 ] && [ "$1" == "--launcher" ]; 
+    then 
+        # The launcher hangs on exit (Exception in Wine). This prevents from unmounting 
+        # UnionFS properly. 
+        wine ${WINEPREFIX}/drive_c/${pkgname}_union/AnomalyLauncher.exe "$@"
+    elif [ $# -ge 1 ] && [ "$1" == "--dx9" ]; 
+    then 
+        wine ${WINEPREFIX}/drive_c/${pkgname}_union/bin/AnomalyDX9.exe "$@"
+    else 
+        wine ${WINEPREFIX}/drive_c/${pkgname}_union/bin/AnomalyDX11.exe "$@"
+    fi
+
+}
+
+
+
+# First-time setup
+if [ ! -d "${WINEPREFIX}/drive_c/${pkgname}_writable" ]; then
+    initialSetup
+fi
+
+setupUnionFs
+startApplication $@
+
+exit 0
