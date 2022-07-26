@@ -4,15 +4,13 @@
 #   are kept in ~/Gamesaves/anomaly
 #
 
-# See wrapper script
-WINEPREFIXES="/home/*/.wine/stalker-anomaly"
-
 post_remove() {
   
   echo " -> Cleaning user directories"
 
   shopt -s nullglob   # Allow null globs
-  for d in "${WINEPREFIXES}"; do 
+  for d in /home/*/.local/share/wineprefixes/stalker-anomaly
+  do 
     echo "     -> $d"; 
     rm -rf "$d"
   done

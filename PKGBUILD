@@ -34,14 +34,6 @@ noextract=(
 )
 install="${pkgname}.install"
 
-# TODO: 
-#   - Look into transmission-dlagent so that the pkgbuild can download the files directly
-#     https://wiki.archlinux.org/title/PKGBUILD
-#     https://aur.archlinux.org/packages/transmission-dlagent
-#   - Take some inspiration from java jdk detecting source in /Downloads
-#     https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=jdk8
-
-
 function notice() {
 cat << EOF
 

@@ -1,0 +1,11 @@
+
+PKGBUILD
+- Look into transmission-dlagent so that the pkgbuild can download the files directly
+  https://wiki.archlinux.org/title/PKGBUILD
+  https://aur.archlinux.org/packages/transmission-dlagent
+- Alternatively, take some inspiration from java jdk detecting source in /Downloads
+   https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=jdk8
+ 
+Wrapper script: 
+- Why did I use UnionFS ? Can I replace it with simpler symlinks ? 
+  --> Phase out UnionFS in favor of a bunch of symlinks
